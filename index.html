@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combine and Crop Images</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            width: 90%;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .file-input {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .file-input input {
+            display: none;
+        }
+        .file-input label {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .file-input label:hover {
+            background-color: #0056b3;
+        }
+        .drag-drop-area {
+            border: 2px dashed #007bff;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            color: #007bff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .drag-drop-area.dragover {
+            background-color: #e0e0e0;
+        }
+        .preview {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        .image-container {
+            position: relative;
+            width: calc(25% - 10px); /* 4 images per row with 10px gap */
+            height: 250px; /* Increased height */
+            overflow: hidden;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .rotate-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px;
+            cursor: pointer;
+        }
+        .buttons {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .buttons button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .buttons button:hover {
+            background-color: #218838;
+        }
+        .download-link {
+            display: block;
+            margin-top: 10px;
+            text-align: center;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .download-link:hover {
+            text-decoration: underline;
+        }
+        .output-name {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .output-name input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Combine and Crop Images</h1>
+        <div class="file-input">
+            <input type="file" id="inputImages" accept="image/*" multiple>
+            <label for="inputImages">Choose Images</label>
+        </div>
+        <div class="drag-drop-area" id="dragDropArea">Drag and drop images here</div>
+        <div class="output-name">
+            <input type="text" id="outputName" placeholder="Enter output file name">
+        </div>
+        <div id="previewContainer" class="preview"></div>
+        <div class="buttons">
+            <button id="combineButton" style="display: none;">Combine and Download</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="face-api.min.js"></script>
+    <script>
+        let croppers = [];
+        const inputImages = document.getElementById('inputImages');
+        const dragDropArea = document.getElementById('dragDropArea');
+        const previewContainer = document.getElementById('previewContainer');
+        const combineButton = document.getElementById('combineButton');
+        const outputNameInput = document.getElementById('outputName');
+
+        // Load face-api.js models
+        Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri('weights'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('weights'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('weights')
+        ]).then(() => {
+            console.log('Face-api.js models loaded');
+        });
+
+        const handleFiles = async (files) => {
+            previewContainer.innerHTML = '';
+            croppers = [];
+
+            if (files && files.length > 0) {
+                for (const [index, file] of Array.from(files).entries()) {
+                    const url = URL.createObjectURL(file);
+                    const imageContainer = document.createElement('div');
+                    imageContainer.classList.add('image-container');
+                    const image = document.createElement('img');
+                    image.src = url;
+                    image.id = `image-${index}`;
+                    imageContainer.appendChild(image);
+
+                    const rotateButton = document.createElement('button');
+                    rotateButton.classList.add('rotate-button');
+                    rotateButton.textContent = 'Rotate';
+                    rotateButton.addEventListener('click', () => {
+                        const cropper = croppers[index];
+                        cropper.rotate(90);
+                    });
+                    imageContainer.appendChild(rotateButton);
+
+                    previewContainer.appendChild(imageContainer);
+
+                    const cropper = new Cropper(image, {
+                        aspectRatio: 5.6 / 9.2,
+                        viewMode: 1,
+                        autoCropArea: 1, // Set initial crop area to cover the entire image
+                        ready: async function () {
+                            const detections = await faceapi.detectAllFaces(image, new faceapi.TinyFaceDetectorOptions());
+                            if (detections.length > 0) {
+                                const face = detections[0].box;
+                                const containerData = this.cropper.getContainerData();
+                                const cropBoxData = this.cropper.getCropBoxData();
+                                const imageData = this.cropper.getImageData();
+                                const newCropBoxWidth = cropBoxData.width;
+                                const newCropBoxHeight = (newCropBoxWidth / 5.6) * 9.2;
+
+                                // Center the crop box around the detected face
+                                const centerX = face.x + face.width / 2;
+                                const centerY = face.y + face.height / 2;
+                                const cropX = Math.max(0, centerX - newCropBoxWidth / 2);
+                                const cropY = Math.max(0, centerY - newCropBoxHeight / 2);
+
+                                this.cropper.setCropBoxData({
+                                    left: cropX,
+                                    top: cropY,
+                                    width: newCropBoxWidth,
+                                    height: newCropBoxHeight
+                                });
+                            } else {
+                                // Default to centered crop if no face is detected
+                                const containerData = this.cropper.getContainerData();
+                                const cropBoxData = this.cropper.getCropBoxData();
+                                const imageData = this.cropper.getImageData();
+                                const newCropBoxWidth = cropBoxData.width;
+                                const newCropBoxHeight = (newCropBoxWidth / 5.6) * 9.2;
+
+                                const cropX = (containerData.width - newCropBoxWidth) / 2;
+                                const cropY = (containerData.height - newCropBoxHeight) / 2;
+
+                                this.cropper.setCropBoxData({
+                                    left: cropX,
+                                    top: cropY,
+                                    width: newCropBoxWidth,
+                                    height: newCropBoxHeight
+                                });
+                            }
+
+                            // Rotate image to horizontal if needed
+                            if (imageData.width < imageData.height) {
+                                this.cropper.rotate(90);
+                            }
+                        }
+                    });
+                    croppers.push(cropper);
+                }
+
+                combineButton.style.display = 'inline-block';
+            }
+        };
+
+        inputImages.addEventListener('change', (event) => {
+            handleFiles(event.target.files);
+        });
+
+        dragDropArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dragDropArea.classList.add('dragover');
+        });
+
+        dragDropArea.addEventListener('dragleave', () => {
+            dragDropArea.classList.remove('dragover');
+        });
+
+        dragDropArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dragDropArea.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        combineButton.addEventListener('click', () => {
+            // Remove old download links
+            const oldLinks = document.querySelectorAll('.download-link');
+            oldLinks.forEach(link => link.remove());
+
+            const a4Width = 2480; // A4 width in pixels at 300 DPI
+            const a4Height = 3508; // A4 height in pixels at 300 DPI
+            const paddingLeftRight = 200; // Doubled padding for left and right
+            const paddingTopBottom = 50; // Original padding for top and bottom
+            const imgWidth = (a4Width - 2 * paddingLeftRight) / 2;
+            const imgHeight = (a4Height - 2 * paddingTopBottom) / 5; // Maintain 5.6:9.2 aspect ratio
+
+            const totalPages = Math.ceil(croppers.length / 10);
+            let currentPage = 0;
+            const zip = new JSZip();
+
+            const createPage = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = a4Width;
+                canvas.height = a4Height;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, a4Width, a4Height);
+
+                const start = currentPage * 10;
+                const end = Math.min(start + 10, croppers.length);
+
+                for (let i = start; i < end; i++) {
+                    const cropper = croppers[i];
+                    const croppedCanvas = cropper.getCroppedCanvas();
+
+                    // Create a temporary canvas to rotate the cropped image
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = croppedCanvas.height;
+                    tempCanvas.height = croppedCanvas.width;
+                    tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+                    tempCtx.rotate(90 * Math.PI / 180);
+                    tempCtx.drawImage(croppedCanvas, -croppedCanvas.width / 2, -croppedCanvas.height / 2);
+
+                    const x = paddingLeftRight + (i % 2) * imgWidth;
+                    const y = paddingTopBottom + Math.floor((i % 10) / 2) * imgHeight;
+                    ctx.drawImage(tempCanvas, x, y, imgWidth, imgHeight);
+                }
+
+                canvas.toBlob((blob) => {
+                    zip.file(`combined-image-page-${currentPage + 1}.jpg`, blob);
+
+                    currentPage++;
+                    if (currentPage < totalPages) {
+                        createPage();
+                    } else {
+                        const outputName = outputNameInput.value.trim() || Date.now().toString();
+                        zip.generateAsync({ type: 'blob' }).then((content) => {
+                            saveAs(content, `${outputName}.zip`);
+                        });
+                    }
+                }, 'image/jpeg');
+            };
+
+            createPage();
+        });
+    </script>
+</body>
+</html>
