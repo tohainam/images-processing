@@ -84,16 +84,23 @@
         height: 100%;
         object-fit: cover;
       }
-      .rotate-button {
+      .rotate-button,
+      .viewmode-button {
         position: absolute;
-        top: 10px;
-        right: 10px;
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
         border: none;
         border-radius: 5px;
         padding: 5px;
         cursor: pointer;
+      }
+      .rotate-button {
+        right: 10px;
+        top: 10px;
+      }
+      .viewmode-button {
+        right: 10px;
+        top: 40px;
       }
       .buttons {
         text-align: center;
@@ -138,11 +145,11 @@
     <div class="container">
       <h1>Combine and Crop Images</h1>
       <div class="file-input">
-        <input type="file" id="inputImages" accept="image/*" multiple />
-        <label for="inputImages">Choose Images</label>
+        <input type="file" id="inputImages" accept="image/*, .zip" multiple />
+        <label for="inputImages">Choose Images or ZIP Files</label>
       </div>
       <div class="drag-drop-area" id="dragDropArea">
-        Drag and drop images here
+        Drag and drop images or ZIP files here
       </div>
       <div class="output-name">
         <input
@@ -184,8 +191,27 @@
         previewContainer.innerHTML = "";
         croppers = [];
 
-        if (files && files.length > 0) {
-          for (const [index, file] of Array.from(files).entries()) {
+        const imageFiles = [];
+
+        for (const file of files) {
+          if (file.type === "application/zip") {
+            const zip = await JSZip.loadAsync(file);
+            for (const relativePath in zip.files) {
+              const zipEntry = zip.files[relativePath];
+              if (!zipEntry.dir && /\.(jpe?g|png)$/i.test(zipEntry.name)) {
+                const blob = await zipEntry.async("blob");
+                imageFiles.push(
+                  new File([blob], zipEntry.name, { type: blob.type })
+                );
+              }
+            }
+          } else if (file.type.startsWith("image/")) {
+            imageFiles.push(file);
+          }
+        }
+
+        if (imageFiles.length > 0) {
+          for (const [index, file] of imageFiles.entries()) {
             const url = URL.createObjectURL(file);
             const imageContainer = document.createElement("div");
             imageContainer.classList.add("image-container");
@@ -203,11 +229,89 @@
             });
             imageContainer.appendChild(rotateButton);
 
+            const viewModeButton = document.createElement("button");
+            viewModeButton.classList.add("viewmode-button");
+            viewModeButton.textContent = "1"; // Default viewMode to 1
+            viewModeButton.addEventListener("click", () => {
+              const cropper = croppers[index];
+              const currentViewMode = cropper.options.viewMode;
+              const newViewMode = currentViewMode === 0 ? 1 : 0;
+              viewModeButton.textContent = newViewMode.toString();
+              cropper.destroy();
+              croppers[index] = new Cropper(image, {
+                aspectRatio: 5.6 / 9.2,
+                viewMode: newViewMode,
+                autoCropArea: 1,
+                ready: async function () {
+                  const detections = await faceapi.detectAllFaces(
+                    image,
+                    new faceapi.TinyFaceDetectorOptions()
+                  );
+                  if (detections.length > 0) {
+                    const face = detections[0].box;
+                    const containerData = this.cropper.getContainerData();
+                    const cropBoxData = this.cropper.getCropBoxData();
+                    const imageData = this.cropper.getImageData();
+                    const newCropBoxWidth = cropBoxData.width;
+                    const newCropBoxHeight = (newCropBoxWidth / 5.6) * 9.2;
+
+                    // Center the crop box around the detected face
+                    const centerX = face.x + face.width / 2;
+                    const centerY = face.y + face.height / 2;
+                    const cropX = Math.max(
+                      0,
+                      Math.min(
+                        centerX - newCropBoxWidth / 2,
+                        imageData.width - newCropBoxWidth
+                      )
+                    );
+                    const cropY = Math.max(
+                      0,
+                      Math.min(
+                        centerY - newCropBoxHeight / 2,
+                        imageData.height - newCropBoxHeight
+                      )
+                    );
+
+                    this.cropper.setCropBoxData({
+                      left: cropX,
+                      top: cropY,
+                      width: newCropBoxWidth,
+                      height: newCropBoxHeight,
+                    });
+                  } else {
+                    // Default to centered crop if no face is detected
+                    const containerData = this.cropper.getContainerData();
+                    const cropBoxData = this.cropper.getCropBoxData();
+                    const imageData = this.cropper.getImageData();
+                    const newCropBoxWidth = cropBoxData.width;
+                    const newCropBoxHeight = (newCropBoxWidth / 5.6) * 9.2;
+
+                    const cropX = (containerData.width - newCropBoxWidth) / 2;
+                    const cropY = (containerData.height - newCropBoxHeight) / 2;
+
+                    this.cropper.setCropBoxData({
+                      left: cropX,
+                      top: cropY,
+                      width: newCropBoxWidth,
+                      height: newCropBoxHeight,
+                    });
+                  }
+
+                  // Rotate image to horizontal if needed
+                  if (imageData.width < imageData.height) {
+                    this.cropper.rotate(90);
+                  }
+                },
+              });
+            });
+            imageContainer.appendChild(viewModeButton);
+
             previewContainer.appendChild(imageContainer);
 
             const cropper = new Cropper(image, {
               aspectRatio: 5.6 / 9.2,
-              viewMode: 1,
+              viewMode: 1, // Default viewMode to 1
               autoCropArea: 1, // Set initial crop area to cover the entire image
               ready: async function () {
                 const detections = await faceapi.detectAllFaces(
@@ -225,8 +329,20 @@
                   // Center the crop box around the detected face
                   const centerX = face.x + face.width / 2;
                   const centerY = face.y + face.height / 2;
-                  const cropX = Math.max(0, centerX - newCropBoxWidth / 2);
-                  const cropY = Math.max(0, centerY - newCropBoxHeight / 2);
+                  const cropX = Math.max(
+                    0,
+                    Math.min(
+                      centerX - newCropBoxWidth / 2,
+                      imageData.width - newCropBoxWidth
+                    )
+                  );
+                  const cropY = Math.max(
+                    0,
+                    Math.min(
+                      centerY - newCropBoxHeight / 2,
+                      imageData.height - newCropBoxHeight
+                    )
+                  );
 
                   this.cropper.setCropBoxData({
                     left: cropX,
@@ -293,7 +409,7 @@
 
         const a4Width = 2480; // A4 width in pixels at 300 DPI
         const a4Height = 3508; // A4 height in pixels at 300 DPI
-        const paddingLeftRight = 180; // Doubled padding for left and right
+        const paddingLeftRight = 200; // Doubled padding for left and right
         const paddingTopBottom = 50; // Original padding for top and bottom
         const imgWidth = (a4Width - 2 * paddingLeftRight) / 2;
         const imgHeight = (a4Height - 2 * paddingTopBottom) / 5; // Maintain 5.6:9.2 aspect ratio
