@@ -194,7 +194,7 @@
         const imageFiles = [];
 
         for (const file of files) {
-          if (file.type === "application/zip") {
+          if (["application/zip", "application/x-zip-compressed"].includes(file.type)) {
             const zip = await JSZip.loadAsync(file);
             for (const relativePath in zip.files) {
               const zipEntry = zip.files[relativePath];
