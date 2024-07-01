@@ -194,7 +194,11 @@
         const imageFiles = [];
 
         for (const file of files) {
-          if (["application/zip", "application/x-zip-compressed"].includes(file.type)) {
+          if (
+            ["application/zip", "application/x-zip-compressed"].includes(
+              file.type
+            )
+          ) {
             const zip = await JSZip.loadAsync(file);
             for (const relativePath in zip.files) {
               const zipEntry = zip.files[relativePath];
@@ -409,10 +413,11 @@
 
         const a4Width = 2480; // A4 width in pixels at 300 DPI
         const a4Height = 3508; // A4 height in pixels at 300 DPI
-        const paddingLeftRight = 141.7322; // Doubled padding for left and right
-        const paddingTopBottom = 70.86614; // Original padding for top and bottom
+        const paddingLeftRight = 141.7322; // Padding for left and right
+        const paddingTop = 70.86614; // Padding for top
+        const paddingBottom = 106.2992; // Padding for bottom
         const imgWidth = (a4Width - 2 * paddingLeftRight) / 2;
-        const imgHeight = (a4Height - 2 * paddingTopBottom) / 5; // Maintain 5.6:9.2 aspect ratio
+        const imgHeight = (a4Height - paddingTop - paddingBottom) / 5; // Maintain 5.6:9.2 aspect ratio
 
         const totalPages = Math.ceil(croppers.length / 10);
         let currentPage = 0;
@@ -448,7 +453,7 @@
             );
 
             const x = paddingLeftRight + (i % 2) * imgWidth;
-            const y = paddingTopBottom + Math.floor((i % 10) / 2) * imgHeight;
+            const y = paddingTop + Math.floor((i % 10) / 2) * imgHeight;
             ctx.drawImage(tempCanvas, x, y, imgWidth, imgHeight);
           }
 
