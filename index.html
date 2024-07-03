@@ -421,7 +421,6 @@
 
         const totalPages = Math.ceil(croppers.length / 10);
         let currentPage = 0;
-        const zip = new JSZip();
 
         const createPage = () => {
           const canvas = document.createElement("canvas");
@@ -458,17 +457,14 @@
           }
 
           canvas.toBlob((blob) => {
-            zip.file(`combined-image-page-${currentPage + 1}.jpg`, blob);
+            const outputName =
+              outputNameInput.value.trim() || Date.now().toString();
+            const fileName = `${outputName}-page-${currentPage + 1}.jpg`;
+            saveAs(blob, fileName);
 
             currentPage++;
             if (currentPage < totalPages) {
               createPage();
-            } else {
-              const outputName =
-                outputNameInput.value.trim() || Date.now().toString();
-              zip.generateAsync({ type: "blob" }).then((content) => {
-                saveAs(content, `${outputName}.zip`);
-              });
             }
           }, "image/jpeg");
         };
