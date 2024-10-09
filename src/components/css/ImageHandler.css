@@ -1,0 +1,221 @@
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2980b9;
+    --background-color: #ecf0f1;
+    --text-color: #2c3e50;
+    --button-bg-color: #3498db;
+    --button-hover-bg-color: #2980b9;
+    --button-text-color: white;
+    --border-color: #bdc3c7;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --font-family: 'Arial', sans-serif;
+}
+
+.container {
+    background: var(--background-color);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px var(--shadow-color);
+    max-width: 100%;
+    width: 90%;
+    margin: 20px auto;
+}
+
+h1 {
+    text-align: center;
+    color: var(--text-color);
+    font-family: var(--font-family);
+}
+
+.file-input {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    border: 2px dashed var(--primary-color);
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-family: var(--font-family);
+}
+
+.file-input input {
+    display: none;
+}
+
+.file-input label {
+    background-color: transparent;
+    color: var(--text-color);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-family: var(--font-family);
+}
+
+.file-input:hover {
+    background-color: var(--secondary-color);
+}
+
+.file-input.dragover {
+    background-color: var(--secondary-color);
+}
+
+.drag-drop-area {
+    border: 2px dashed var(--primary-color);
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-family: var(--font-family);
+}
+
+.drag-drop-area.dragover {
+    background-color: var(--secondary-color);
+}
+
+.drag-drop-area:hover {
+    background-color: var(--secondary-color);
+}
+
+.preview {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.image-container {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: #fff;
+}
+
+.image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-container:hover .button-rotate,
+.image-container:hover .button-viewmode,
+.image-container:hover .button-delete {
+    display: block;
+}
+
+.button-rotate,
+.button-viewmode,
+.button-delete {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    padding: 10px;
+    cursor: pointer;
+    font-family: var(--font-family);
+    display: none;
+    transition: background-color 0.3s;
+}
+
+.button-rotate:hover,
+.button-viewmode:hover,
+.button-delete:hover {
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.button-rotate {
+    right: 10px;
+    top: 10px;
+}
+
+.button-viewmode {
+    right: 10px;
+    top: 50px;
+}
+
+.button-delete {
+    right: 10px;
+    top: 90px;
+}
+
+.download {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: auto;
+    margin-top: 20px;
+}
+
+.buttons button {
+    padding: 10px 20px;
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-family: var(--font-family);
+}
+
+.buttons button:hover {
+    background-color: var(--button-hover-bg-color);
+}
+
+.download-link {
+    display: block;
+    margin-top: 10px;
+    text-align: center;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-family: var(--font-family);
+}
+
+.download-link:hover {
+    text-decoration: underline;
+}
+
+.output-name {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.output-name input {
+    width: 90%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-family: var(--font-family);
+    margin-right: 10px;
+    background-color: #f9f9f9;
+    color: var(--text-color);
+}
+
+button:focus,
+button:focus-visible {
+    outline: 4px solid white;
+}
+
+#combineButton {
+    display: none;
+}
